@@ -21,7 +21,7 @@ BASE_LEARNING_RATE = 0.1
 LR_SCHEDULE = [(0.1, 30), (0.01, 45)]
 
 
-def preprocess(x, y):
+def normalize(x, y):
   x = tf.image.per_image_standardization(x)
   return x, y
 
@@ -52,12 +52,9 @@ train_dataset = tf.data.Dataset.from_tensor_slices((x,y))
 test_dataset = tf.data.Dataset.from_tensor_slices((x_test, y_test))
 
 tf.random.set_seed(22)
-train_dataset = train_dataset.map(augmentation).map(preprocess).shuffle(NUM_TRAIN_SAMPLES).batch(BS_PER_GPU * NUM_GPUS, drop_remainder=True)
-test_dataset = test_dataset.map(preprocess).batch(BS_PER_GPU * NUM_GPUS, drop_remainder=True)
+train_dataset = train_dataset.map(augmentation).map(normalize).shuffle(NUM_TRAIN_SAMPLES).batch(BS_PER_GPU * NUM_GPUS, drop_remainder=True)
+test_dataset = test_dataset.map(normalize).batch(BS_PER_GPU * NUM_GPUS, drop_remainder=True)
 
-# print(train_dataset.take(1))
-# import sys
-# sys.exit()
 
 input_shape = (32, 32, 3)
 img_input = tf.keras.layers.Input(shape=input_shape)
