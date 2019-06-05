@@ -1,11 +1,10 @@
 import argparse
 import sys
 import os
-
+import downloader
 
 def main():
   sys.path.append('.')
-  from source.tool import downloader
 
   parser = argparse.ArgumentParser(
     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
