@@ -9,7 +9,7 @@ This tutorial explains how to do transfer learning with TensorFlow 2. We will co
 ## Reproduce the tutorial
 
 ```
-python demo/download_data.py \
+python download_data.py \
 --data_url=https://s3-us-west-2.amazonaws.com/lambdalabs-files/StanfordDogs120.tar.gz \
 --data_dir=~/demo/data
 
