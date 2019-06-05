@@ -23,3 +23,10 @@ A tutorial of Image classification with ResNet.
 * Model pipeline with Keras (TensorFlow 2's offical high level API)
 * Multi-GPU with distributed strategy
 * Customized training with callbacks (TensorBoard, Customized learning schedule)
+
+### 01 Transfer Learning
+This tutorial explains how to do transfer learning with TensorFlow 2. We will cover:
+
+* Handling Customized Dataset
+* Restore Backbone with Keras's application API
+* Restore backbone from disk

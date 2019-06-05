@@ -178,7 +178,7 @@ model.fit(x, y,
 
 The evaluation of the model calls the ```evaluate``` function with the test dataset:
 ```
-model.evaluate(test_loader)
+model.evaluate(test_dataset)
 ```
 
 **Save and Restore**
@@ -190,7 +190,7 @@ model.save('model.h5')
 new_model = keras.models.load_model('model.h5')
 
 # Gives the same accuracy as model
-new_model.evaluate(test_loader)
+new_model.evaluate(test_dataset)
 ```
 
 However, there is one caveat: model created by [sub-classing](https://keras.io/models/about-keras-models/#model-subclassing) can not be saved by ```model.save()```. This is because sub-classing defines model's topology as Python code (rather than as a static graph of layers). That means the model's topology cannot be inspected or serialized. As a result, the following methods and attributes are not available for subclassed models:
@@ -222,8 +222,8 @@ We use ```MirroredStrategy``` here, which supports synchronous distributed train
 Notice the data pipeline need to scale batch size accordingly to get proper utilization of multiple-GPUs.
 
 ```
-train_loader = train_loader.map(preprocess).shuffle(50000).batch(BS_PER_GPU*NUM_GPUS)
-test_loader = test_loader.map(preprocess).batch(BS_PER_GPU*NUM_GPUS)
+train_dataset = train_dataset.map(preprocess).shuffle(50000).batch(BS_PER_GPU*NUM_GPUS)
+test_dataset = test_dataset.map(preprocess).batch(BS_PER_GPU*NUM_GPUS)
 ```
 
 ## Callbacks
