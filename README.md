@@ -24,7 +24,7 @@ A tutorial of Image classification with ResNet.
 * Multi-GPU with distributed strategy
 * Customized training with callbacks (TensorBoard, Customized learning schedule)
 
-### 01 Transfer Learning
+### 02 Transfer Learning
 This tutorial explains how to do transfer learning with TensorFlow 2. We will cover:
 
 * Handling Customized Dataset
