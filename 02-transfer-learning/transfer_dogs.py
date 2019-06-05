@@ -3,6 +3,7 @@ import csv
 import datetime
 
 import tensorflow as tf
+import vgg_preprocessing
 
 HEIGHT = 224
 WIDTH = 224
@@ -12,7 +13,7 @@ NUM_CLASSES = 120
 BS_PER_GPU = 32
 NUM_EPOCHS = 10
 
-BASE_LEARNING_RATE = 0.001
+BASE_LEARNING_RATE = 0.1
 LR_SCHEDULE = [(0.1, 5), (0.01, 8)]
 L2_WEIGHT_DECAY = 2e-4
 
@@ -25,12 +26,22 @@ TRAIN_FILE = path_home + "/demo/data/StanfordDogs120/train.csv"
 TEST_FILE = path_home + "/demo/data/StanfordDogs120/eval.csv"
 
 
-def preprocess(x, y):
+def preprocess_train(x, y):
   x = tf.compat.v1.read_file(x)
   x = tf.image.decode_jpeg(x, dct_method="INTEGER_ACCURATE")
-  x = tf.compat.v1.image.resize_images(x, (HEIGHT, WIDTH))
-  x = tf.cast(x, tf.float32)
-  x = x - MEAN
+
+  x = vgg_preprocessing.preprocess_for_train(x,
+                                             HEIGHT,
+                                             WIDTH)
+  return x, y
+
+
+def preprocess_eval(x, y):
+  x = tf.compat.v1.read_file(x)
+  x = tf.image.decode_jpeg(x, dct_method="INTEGER_ACCURATE")  
+  x = vgg_preprocessing.preprocess_for_eval(x,
+                                             HEIGHT,
+                                             WIDTH)
   return x, y
 
 
@@ -75,13 +86,15 @@ NUM_TEST_SAMPLES = len(test_images_path)
 train_dataset = tf.data.Dataset.from_tensor_slices((train_images_path, train_labels))
 test_dataset = tf.data.Dataset.from_tensor_slices((test_images_path, test_labels))
 
-train_dataset = train_dataset.shuffle(NUM_TRAIN_SAMPLES).map(preprocess).map(augmentation).batch(BS_PER_GPU, drop_remainder=True)
-test_dataset = test_dataset.map(preprocess).batch(BS_PER_GPU, drop_remainder=True)
+train_dataset = train_dataset.shuffle(NUM_TRAIN_SAMPLES).map(preprocess_train).batch(BS_PER_GPU, drop_remainder=True)
+test_dataset = test_dataset.map(preprocess_eval).batch(BS_PER_GPU, drop_remainder=True)
+
+
 
 
 input_shape = (HEIGHT, WIDTH, 3)
 img_input = tf.keras.layers.Input(shape=input_shape)
-opt = tf.keras.optimizers.RMSprop()
+opt = tf.keras.optimizers.SGD()
 
 if FLAG_RESTORE_FROM_DISK:
   backbone = tf.keras.models.load_model('ResNet50.h5')
@@ -94,24 +107,10 @@ else:
 
 x = tf.keras.layers.GlobalAveragePooling2D(name='avg_pool')(x)
 x = tf.keras.layers.Dropout(0.5)(x)
-x = tf.keras.layers.Dense(640,
-                          kernel_initializer='he_normal',
-                          kernel_regularizer=
-                          tf.keras.regularizers.l2(L2_WEIGHT_DECAY),
-                          bias_regularizer=
-                          tf.keras.regularizers.l2(L2_WEIGHT_DECAY),
-                          name='fc10')(x)
-x = tf.keras.layers.BatchNormalization()(x)
-x = tf.keras.layers.Activation("relu", name="new_relu0")(x)
-x = tf.keras.layers.Dropout(0.5)(x)
 x = tf.keras.layers.Dense(NUM_CLASSES, activation='softmax',
-                          kernel_initializer='he_normal',
-                          kernel_regularizer=
-                          tf.keras.regularizers.l2(L2_WEIGHT_DECAY),
-                          bias_regularizer=
-                          tf.keras.regularizers.l2(L2_WEIGHT_DECAY),
                           name='prediction')(x)      
 model = tf.keras.models.Model(backbone.input, x, name='model')
+
 model.compile(optimizer=opt,
 			  loss='sparse_categorical_crossentropy',
 			  metrics=['accuracy'])
