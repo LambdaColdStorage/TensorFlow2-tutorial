@@ -1,1 +1,3 @@
 output-mnist/*
+output-cifar10/*
+__pycache__/*
