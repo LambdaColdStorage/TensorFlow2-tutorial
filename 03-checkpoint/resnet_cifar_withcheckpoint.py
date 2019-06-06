@@ -74,20 +74,19 @@ outputFolder = './output-cifar'
 if not os.path.exists(outputFolder):
     os.makedirs(outputFolder)
 filepath=outputFolder+"/model-{epoch:02d}-{val_accuracy:.2f}.hdf5"
-checkpoint = ModelCheckpoint(filepath, monitor='val_accuracy', verbose=1, \
+checkpoint_callback = ModelCheckpoint(filepath, monitor='val_accuracy', verbose=1, \
                              save_best_only=False, save_weights_only=False, \
                              mode='auto', save_frequency=1)
-callbacks_list = [checkpoint]
 
 # train the model for the first time
 model.fit(train_dataset,
-          epochs=NUM_EPOCHS_1, callbacks=callbacks_list,
+          epochs=NUM_EPOCHS_1, callbacks=[checkpoint_callback],
           validation_data=test_dataset,
           validation_freq=1)
 
 # resume training from the checkpoint
 model_info = model.fit(train_dataset,
-                       epochs=NUM_EPOCHS_2, callbacks=callbacks_list,
+                       epochs=NUM_EPOCHS_2, callbacks=[checkpoint_callback],
                        validation_data=test_dataset,
                        validation_freq=1,
                        initial_epoch = INIT_EPOCH_2)
