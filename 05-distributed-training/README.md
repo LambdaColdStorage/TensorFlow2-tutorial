@@ -5,6 +5,9 @@ Distributed training allows scaling up deep learning task so bigger models can b
 
 ## Reprodution
 
+Change the ```TF_CONFIG``` accroding to your cluster setup. 
+
+
 ```
 # On the first node
 python worker_0.py
