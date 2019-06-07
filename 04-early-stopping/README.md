@@ -3,6 +3,12 @@ During training, weights in the neural networks are updated so the model better 
 
 This tutorial explains how early stopping is implemented in TensorFlow 2. 
 
+## Reproduce
+```
+python resnet_cifar_early_stopping.py
+```
+
+## Early Stopping
 Early stopping is implemented in TensorFlow via the ```tf.keras.EarlyStopping``` callback function:
 
 ```

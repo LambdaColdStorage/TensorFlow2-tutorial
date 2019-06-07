@@ -30,3 +30,15 @@ This tutorial explains how to do transfer learning with TensorFlow 2. We will co
 * Handling Customized Dataset
 * Restore Backbone with Keras's application API
 * Restore backbone from disk
+
+### 03 Checkpoint
+This tutorial explains how use checkpoint to save and restore model during training.
+
+* Use ```tf.keras.ModelCheckpoint``` to save checkpoint
+* Resume training from a pre-saved checkpoint
+
+### 04 Early Stopping
+This tutorial explains how to implement early stopping in TensorFlow 2.
+
+* Use ```tf.keras.EarlyStopping``` callback to achieve early stopping.
+
