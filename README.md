@@ -42,3 +42,9 @@ This tutorial explains how to implement early stopping in TensorFlow 2.
 
 * Use ```tf.keras.EarlyStopping``` callback to achieve early stopping.
 
+### 05 Distributed Training Across Multi-Nodes
+This tutorial explains how to do distributed training across multiple nodes:
+
+* Code boilerplate for multi-node distributed training
+* Run code across multiple machines
+
