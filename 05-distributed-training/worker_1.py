@@ -9,7 +9,7 @@ import resnet
 
 os.environ["TF_CONFIG"] = json.dumps({
     'cluster': {
-        'worker': ["10.1.10.244:12345", "10.1.10.250:12345"]
+        'worker': ["10.1.10.58:12345", "10.1.10.250:12345"]
     },
     'task': {'type': 'worker', 'index': 1}
 })
