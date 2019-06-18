@@ -6,12 +6,13 @@ import json
 from tensorflow import keras
 import resnet
 
-os.environ["TF_CONFIG"] = json.dumps({
-    'cluster': {
-        'worker': ["10.1.10.58:12345", "10.1.10.250:12345"]
-    },
-    'task': {'type': 'worker', 'index': 0}
-})
+"""
+Remember to set the TF_CONFIG envrionment variable.
+
+For example:
+
+export TF_CONFIG='{"cluster": {"worker": ["10.1.10.58:12345", "10.1.10.250:12345"]}, "task": {"index": 0, "type": "worker"}}'
+"""
 
 strategy = tf.distribute.experimental.MultiWorkerMirroredStrategy()
 
