@@ -17,17 +17,20 @@ BASE_LEARNING_RATE = 0.1
 LR_SCHEDULE = [(0.1, 5), (0.01, 8)]
 L2_WEIGHT_DECAY = 2e-4
 
+# Mean values of the dataset.
 MEAN = [103.939, 116.779, 123.68]
 
 FLAG_RESTORE_FROM_DISK = False
 
+# Path to train and test data. They are csv files.
 path_home = os.getenv("HOME")
 TRAIN_FILE = path_home + "/demo/data/StanfordDogs120/train.csv"
 TEST_FILE = path_home + "/demo/data/StanfordDogs120/eval.csv"
 
 
 def preprocess_train(x, y):
-  x = tf.compat.v1.read_file(x)
+  """ Preprocess for training. """
+  x = tf.compat.v1.read_file(x) 
   x = tf.image.decode_jpeg(x, dct_method="INTEGER_ACCURATE")
 
   x = vgg_preprocessing.preprocess_for_train(x,
@@ -37,6 +40,7 @@ def preprocess_train(x, y):
 
 
 def preprocess_eval(x, y):
+  """ Preprocess for testing. """
   x = tf.compat.v1.read_file(x)
   x = tf.image.decode_jpeg(x, dct_method="INTEGER_ACCURATE")  
   x = vgg_preprocessing.preprocess_for_eval(x,
@@ -46,6 +50,7 @@ def preprocess_eval(x, y):
 
 
 def augmentation(x, y):
+  """ Data augmentation. """
   x = tf.image.resize_with_crop_or_pad(
   	x, HEIGHT + 32, WIDTH + 32)
   x = tf.image.random_crop(x, [HEIGHT, WIDTH, NUM_CHANNELS])
@@ -54,6 +59,7 @@ def augmentation(x, y):
 
 
 def load_csv(file):
+  """ Load csv file. """
   dirname = os.path.dirname(file)
   images_path = []
   labels = []
@@ -66,6 +72,7 @@ def load_csv(file):
 
 
 def schedule(epoch):
+  """ Schedule learning rate. """
   initial_learning_rate = BASE_LEARNING_RATE
   learning_rate = initial_learning_rate
   for mult, start_epoch in LR_SCHEDULE:
@@ -76,45 +83,58 @@ def schedule(epoch):
   tf.summary.scalar('learning rate', data=learning_rate, step=epoch)
   return learning_rate
 
-
+# Load training and testing images and labels. 
 train_images_path, train_labels = load_csv(TRAIN_FILE)
 test_images_path, test_labels = load_csv(TEST_FILE)
 
 NUM_TRAIN_SAMPLES = len(train_images_path)
 NUM_TEST_SAMPLES = len(test_images_path)
 
+# Feed data into your models.
 train_dataset = tf.data.Dataset.from_tensor_slices((train_images_path, train_labels))
 test_dataset = tf.data.Dataset.from_tensor_slices((test_images_path, test_labels))
 
+# Preprocess data.
 train_dataset = train_dataset.shuffle(NUM_TRAIN_SAMPLES).map(preprocess_train).batch(BS_PER_GPU, drop_remainder=True)
 test_dataset = test_dataset.map(preprocess_eval).batch(BS_PER_GPU, drop_remainder=True)
 
 
 
-
+# Input settings.
 input_shape = (HEIGHT, WIDTH, 3)
 img_input = tf.keras.layers.Input(shape=input_shape)
 opt = tf.keras.optimizers.SGD()
 
+# Restore from the disk or use existing ResNet50.
 if FLAG_RESTORE_FROM_DISK:
   backbone = tf.keras.models.load_model('ResNet50.h5')
+
+  # Backbone is not trainable.
   backbone.trainable = False
   x = backbone.layers[-3].output	
+
 else:
+  # Use the avaliable model in Keras but dont get top layer.
+  # Since the top layer is classification layer.
   backbone = tf.keras.applications.ResNet50(weights = "imagenet", include_top=False, input_shape = (WIDTH, HEIGHT, NUM_CHANNELS))
+
+  # Backbone is not trainable.
   backbone.trainable = False
   x = backbone.output
 
+# Add custom layers.
 x = tf.keras.layers.GlobalAveragePooling2D(name='avg_pool')(x)
 x = tf.keras.layers.Dropout(0.5)(x)
 x = tf.keras.layers.Dense(NUM_CLASSES, activation='softmax',
                           name='prediction')(x)      
 model = tf.keras.models.Model(backbone.input, x, name='model')
 
+# Compile the model.
 model.compile(optimizer=opt,
 			  loss='sparse_categorical_crossentropy',
 			  metrics=['accuracy'])
 
+# Set logging settings.
 log_dir="logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 file_writer = tf.summary.create_file_writer(log_dir + "/metrics")
 file_writer.set_as_default()
@@ -125,9 +145,12 @@ tensorboard_callback = tf.keras.callbacks.TensorBoard(
 
 lr_schedule_callback = tf.keras.callbacks.LearningRateScheduler(schedule)
 
+# Train the model.
 model.fit(train_dataset,
           epochs=NUM_EPOCHS,
           validation_data=test_dataset,
           validation_freq=1,
           callbacks=[tensorboard_callback, lr_schedule_callback])
+
+# Evaluate the model.          
 model.evaluate(test_dataset)

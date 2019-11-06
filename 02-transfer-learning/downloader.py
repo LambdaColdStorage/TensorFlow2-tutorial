@@ -5,7 +5,12 @@ import tarfile
 
 
 def download(data_url, data_dir):
-
+  """Download data for given url.
+  
+  Args:
+      data_url (str): Source to the data.
+      data_dir (str): Destination folder to save the data.
+  """
   if not os.path.isdir(data_dir):
     os.makedirs(data_dir)
 

@@ -4,6 +4,7 @@ import os
 import downloader
 
 def main():
+  ''' Download the data. Check README.md for the arguments. '''
   sys.path.append('.')
 
   parser = argparse.ArgumentParser(
