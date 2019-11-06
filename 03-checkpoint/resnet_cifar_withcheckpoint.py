@@ -50,7 +50,6 @@ def schedule(epoch):
   return learning_rate
 
 
-# Load the data.
 (x,y), (x_test, y_test) = keras.datasets.cifar10.load_data()
 
 train_dataset = tf.data.Dataset.from_tensor_slices((x,y))
