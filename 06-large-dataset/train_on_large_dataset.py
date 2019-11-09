@@ -50,6 +50,30 @@ def schedule(epoch):
   return learning_rate
 
 
+# Custom data generator for large datasets.
+# Check https://www.tensorflow.org/api_docs/python/tf/keras/utils/Sequence
+class DataGenerator(Sequence):
+
+    def __init__(self, path_to_images, path_to_labels, batch_size):
+        self.path_to_images, self.path_to_labels = path_to_images, path_to_labels
+        self.batch_size = batch_size
+
+    def __len__(self):
+        return math.ceil(len(self.x) / self.batch_size)
+
+    def __getitem__(self, idx):
+        batch_x = self.x[idx * self.batch_size:(idx + 1) *
+        self.batch_size]
+        batch_y = self.y[idx * self.batch_size:(idx + 1) *
+        self.batch_size]
+
+        return np.array([
+            resize(imread(file_name), (200, 200))
+                for file_name in batch_x]), np.array(batch_y)
+
+
+
+
 (x,y), (x_test, y_test) = keras.datasets.cifar10.load_data()
 
 train_dataset = tf.data.Dataset.from_tensor_slices((x,y))
