@@ -1,45 +1,38 @@
 import os
-import numpy as np
+import csv 
 import datetime
 
 import tensorflow as tf
-from tensorflow import keras
-from tensorflow.keras.callbacks import TensorBoard, LearningRateScheduler, ModelCheckpoint
+from custom_data_generator import TrainDataGenerator
 
-import resnet
-
-
-NUM_GPUS = 1
-BS_PER_GPU = 128
-
-HEIGHT = 32
-WIDTH = 32
+HEIGHT = 224
+WIDTH = 224
 NUM_CHANNELS = 3
-NUM_CLASSES = 10
-NUM_TRAIN_SAMPLES = 50000
+NUM_CLASSES = 120
+
+BS_PER_GPU = 32
+NUM_EPOCHS = 10
 
 BASE_LEARNING_RATE = 0.1
-LR_SCHEDULE = [(0.1, 5), (0.01, 10)]
+LR_SCHEDULE = [(0.1, 5), (0.01, 8)]
+L2_WEIGHT_DECAY = 2e-4
 
-NUM_EPOCHS_1 = 3
-NUM_EPOCHS_2 = 5
-INIT_EPOCH_2 = 1
+# Mean values of the dataset.
+MEAN = [103.939, 116.779, 123.68]
 
-def normalize(x, y):
-  x = tf.image.per_image_standardization(x)
-  return x, y
+FLAG_RESTORE_FROM_DISK = False
+
+# Path to train and test data. They are csv files.
+path_home = os.getenv("HOME")
+TRAIN_FILE = path_home + "/demo/data/StanfordDogs120/train.csv"
+TEST_FILE = path_home + "/demo/data/StanfordDogs120/eval.csv"
 
 
-def augmentation(x, y):
-    x = tf.image.resize_with_crop_or_pad(
-        x, HEIGHT + 8, WIDTH + 8)
-    x = tf.image.random_crop(x, [HEIGHT, WIDTH, NUM_CHANNELS])
-    x = tf.image.random_flip_left_right(x)
-    return x, y 
 
 
 def schedule(epoch):
-  initial_learning_rate = BASE_LEARNING_RATE * BS_PER_GPU / 128
+  """ Schedule learning rate. """
+  initial_learning_rate = BASE_LEARNING_RATE
   learning_rate = initial_learning_rate
   for mult, start_epoch in LR_SCHEDULE:
     if epoch >= start_epoch:
@@ -50,71 +43,88 @@ def schedule(epoch):
   return learning_rate
 
 
-# Custom data generator for large datasets.
-# Check https://www.tensorflow.org/api_docs/python/tf/keras/utils/Sequence
-class DataGenerator(Sequence):
+data_generator = TrainDataGenerator(TRAIN_FILE, TEST_FILE, BS_PER_GPU, HEIGHT, WIDTH)
+print((data_generator[0]))
 
-    def __init__(self, path_to_images, path_to_labels, batch_size):
-        self.path_to_images, self.path_to_labels = path_to_images, path_to_labels
-        self.batch_size = batch_size
+exit()
 
-    def __len__(self):
-        return math.ceil(len(self.x) / self.batch_size)
+NUM_TRAIN_SAMPLES = len(train_images_path)
+NUM_TEST_SAMPLES = len(test_images_path)
 
-    def __getitem__(self, idx):
-        batch_x = self.x[idx * self.batch_size:(idx + 1) *
-        self.batch_size]
-        batch_y = self.y[idx * self.batch_size:(idx + 1) *
-        self.batch_size]
+# Feed data into your models.
+train_dataset = tf.data.Dataset.from_tensor_slices((train_images_path, train_labels))
+test_dataset = tf.data.Dataset.from_tensor_slices((test_images_path, test_labels))
 
-        return np.array([
-            resize(imread(file_name), (200, 200))
-                for file_name in batch_x]), np.array(batch_y)
+# Preprocess data.
+train_dataset = train_dataset.shuffle(NUM_TRAIN_SAMPLES).batch(BS_PER_GPU, drop_remainder=True)
+test_dataset = test_dataset.batch(BS_PER_GPU, drop_remainder=True)
 
 
 
-
-(x,y), (x_test, y_test) = keras.datasets.cifar10.load_data()
-
-train_dataset = tf.data.Dataset.from_tensor_slices((x,y))
-test_dataset = tf.data.Dataset.from_tensor_slices((x_test, y_test))
-
-tf.random.set_seed(22)
-train_dataset = train_dataset.shuffle(NUM_TRAIN_SAMPLES).map(augmentation).map(normalize).batch(BS_PER_GPU * NUM_GPUS, drop_remainder=True)
-test_dataset = test_dataset.map(normalize).batch(BS_PER_GPU * NUM_GPUS, drop_remainder=True)
-
-
-input_shape = (HEIGHT, WIDTH, NUM_CHANNELS)
+# Input settings.
+input_shape = (HEIGHT, WIDTH, 3)
 img_input = tf.keras.layers.Input(shape=input_shape)
+opt = tf.keras.optimizers.SGD()
 
-model = resnet.resnet56(img_input=img_input, classes=NUM_CLASSES)
+# Restore from the disk or use existing ResNet50.
+if FLAG_RESTORE_FROM_DISK:
+  backbone = tf.keras.models.load_model('ResNet50.h5')
 
-# define optimizer
-sgd = tf.keras.optimizers.SGD(lr=0.1)
-model.compile(optimizer=sgd, loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+  # Backbone is not trainable.
+  backbone.trainable = False
+  x = backbone.layers[-3].output	
 
-# checkpoint
-outputFolder = './output-cifar'
-if not os.path.exists(outputFolder):
-    os.makedirs(outputFolder)
-filepath=outputFolder+"/model-{epoch:02d}-{val_accuracy:.2f}.hdf5"
-checkpoint_callback = ModelCheckpoint(filepath, monitor='val_accuracy', verbose=1, \
-                             save_best_only=False, save_weights_only=False, \
-                             mode='auto', save_frequency=1)
+else:
+  # Use the avaliable model in Keras but dont get top layer.
+  # Since the top layer is classification layer.
+  backbone = tf.keras.applications.ResNet50(weights = "imagenet", include_top=False, input_shape = (WIDTH, HEIGHT, NUM_CHANNELS))
 
-# train the model for the first time
+  # Backbone is not trainable.
+  backbone.trainable = False
+  x = backbone.output
+
+# Add custom layers.
+x = tf.keras.layers.GlobalAveragePooling2D(name='avg_pool')(x)
+x = tf.keras.layers.Dropout(0.5)(x)
+x = tf.keras.layers.Dense(NUM_CLASSES, activation='softmax',
+                          name='prediction')(x)      
+model = tf.keras.models.Model(backbone.input, x, name='model')
+
+# Compile the model.
+model.compile(optimizer=opt,
+			  loss='sparse_categorical_crossentropy',
+			  metrics=['accuracy'])
+
+# Set logging settings.
+log_dir="logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+file_writer = tf.summary.create_file_writer(log_dir + "/metrics")
+file_writer.set_as_default()
+tensorboard_callback = tf.keras.callbacks.TensorBoard(
+  log_dir=log_dir,
+  update_freq='batch',
+  histogram_freq=1)
+
+lr_schedule_callback = tf.keras.callbacks.LearningRateScheduler(schedule)
+
+
+
+
+# Train the model.
 model.fit(train_dataset,
-          epochs=NUM_EPOCHS_1, callbacks=[checkpoint_callback],
+          epochs=NUM_EPOCHS,
           validation_data=test_dataset,
-          validation_freq=1)
+          validation_freq=1,
+          callbacks=[tensorboard_callback, lr_schedule_callback])
 
-# resume training from the checkpoint
-model_info = model.fit(train_dataset,
-                       epochs=NUM_EPOCHS_2, callbacks=[checkpoint_callback],
-                       validation_data=test_dataset,
-                       validation_freq=1,
-                       initial_epoch = INIT_EPOCH_2)
-
+# Evaluate the model.          
 model.evaluate(test_dataset)
 
-model.save('./output-cifar/model.h5')
+
+
+
+
+
+
+
+
+
