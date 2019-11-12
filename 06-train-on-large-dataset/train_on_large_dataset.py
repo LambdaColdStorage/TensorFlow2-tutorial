@@ -2,8 +2,12 @@ import os
 import csv 
 import datetime
 
+from skimage.transform import resize
+from skimage.io import imread
+import numpy as np
+
 import tensorflow as tf
-from custom_data_generator import TrainDataGenerator
+import vgg_preprocessing
 
 HEIGHT = 224
 WIDTH = 224
@@ -28,6 +32,34 @@ TRAIN_FILE = path_home + "/demo/data/StanfordDogs120/train.csv"
 TEST_FILE = path_home + "/demo/data/StanfordDogs120/eval.csv"
 
 
+def preprocess_train(x, y):
+  """ Preprocess for training. """
+  x = vgg_preprocessing.preprocess_for_train(x,
+                                             HEIGHT,
+                                             WIDTH)
+  return x, y
+
+
+def preprocess_eval(x, y):
+  """ Preprocess for testing. """
+  x = vgg_preprocessing.preprocess_for_eval(x,
+                                             HEIGHT,
+                                             WIDTH)
+  return x, y
+
+
+
+def load_csv(file):
+  """ Load csv file. """
+  dirname = os.path.dirname(file)
+  images_path = []
+  labels = []
+  with open(file) as f:
+    parsed = csv.reader(f, delimiter=",", quotechar="'")
+    for row in parsed:
+      images_path.append(os.path.join(dirname, row[0]))
+      labels.append(int(row[1]))
+  return images_path, labels
 
 
 def schedule(epoch):
@@ -42,22 +74,48 @@ def schedule(epoch):
   tf.summary.scalar('learning rate', data=learning_rate, step=epoch)
   return learning_rate
 
-
-data_generator = TrainDataGenerator(TRAIN_FILE, TEST_FILE, BS_PER_GPU, HEIGHT, WIDTH)
-print((data_generator[0]))
-
-exit()
+# Load training and testing images and labels. 
+train_images_path, train_labels = load_csv(TRAIN_FILE)
+test_images_path, test_labels = load_csv(TEST_FILE)
 
 NUM_TRAIN_SAMPLES = len(train_images_path)
 NUM_TEST_SAMPLES = len(test_images_path)
 
-# Feed data into your models.
-train_dataset = tf.data.Dataset.from_tensor_slices((train_images_path, train_labels))
-test_dataset = tf.data.Dataset.from_tensor_slices((test_images_path, test_labels))
+def train_generator():
+  """ Generator for training samples.
+  We should use yield when we want to iterate over a sequence, but don't want to store the entire sequence in memory.
+  """
+  for image_path, label in zip(train_images_path, train_labels):
+      X = np.array(resize(imread(image_path), (HEIGHT, WIDTH)))
+      y = label
+      
+      yield X, y
+          
+def test_generator():
+  """ Generator for test samples.
+  We should use yield when we want to iterate over a sequence, but don't want to store the entire sequence in memory.
+  """
+  for image_path, label in zip(test_images_path, test_labels):
+      X = np.array(resize(imread(image_path), (HEIGHT, WIDTH)))
+      y = label
+      
+      yield X, y
+
+
+# Feed data into your models using generators.
+# You can handle large datasets since samples are created on the fly.
+train_dataset = tf.data.Dataset.from_generator(generator = train_generator,
+                                            output_types = (tf.float32, tf.int8),
+                                            output_shapes=(tf.TensorShape([HEIGHT, WIDTH, 3]), tf.TensorShape([])))
+test_dataset = tf.data.Dataset.from_generator(generator = test_generator,
+                                            output_types = (tf.float32, tf.int8),
+                                            output_shapes=(tf.TensorShape([HEIGHT, WIDTH, 3]), tf.TensorShape([])))
+
+
 
 # Preprocess data.
-train_dataset = train_dataset.shuffle(NUM_TRAIN_SAMPLES).batch(BS_PER_GPU, drop_remainder=True)
-test_dataset = test_dataset.batch(BS_PER_GPU, drop_remainder=True)
+train_dataset = train_dataset.shuffle(NUM_TRAIN_SAMPLES).map(preprocess_train).batch(BS_PER_GPU, drop_remainder=True)
+test_dataset = test_dataset.map(preprocess_eval).batch(BS_PER_GPU, drop_remainder=True)
 
 
 
@@ -106,9 +164,6 @@ tensorboard_callback = tf.keras.callbacks.TensorBoard(
 
 lr_schedule_callback = tf.keras.callbacks.LearningRateScheduler(schedule)
 
-
-
-
 # Train the model.
 model.fit(train_dataset,
           epochs=NUM_EPOCHS,
@@ -118,13 +173,3 @@ model.fit(train_dataset,
 
 # Evaluate the model.          
 model.evaluate(test_dataset)
-
-
-
-
-
-
-
-
-
-
