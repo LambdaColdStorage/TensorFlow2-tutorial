@@ -2,6 +2,10 @@ import os
 import csv 
 import datetime
 
+from skimage.transform import resize
+from skimage.io import imread
+import numpy as np
+
 import tensorflow as tf
 import vgg_preprocessing
 
@@ -30,9 +34,6 @@ TEST_FILE = path_home + "/demo/data/StanfordDogs120/eval.csv"
 
 def preprocess_train(x, y):
   """ Preprocess for training. """
-  x = tf.compat.v1.read_file(x) 
-  x = tf.image.decode_jpeg(x, dct_method="INTEGER_ACCURATE")
-
   x = vgg_preprocessing.preprocess_for_train(x,
                                              HEIGHT,
                                              WIDTH)
@@ -41,21 +42,11 @@ def preprocess_train(x, y):
 
 def preprocess_eval(x, y):
   """ Preprocess for testing. """
-  x = tf.compat.v1.read_file(x)
-  x = tf.image.decode_jpeg(x, dct_method="INTEGER_ACCURATE")  
   x = vgg_preprocessing.preprocess_for_eval(x,
                                              HEIGHT,
                                              WIDTH)
   return x, y
 
-
-def augmentation(x, y):
-  """ Data augmentation. """
-  x = tf.image.resize_with_crop_or_pad(
-  	x, HEIGHT + 32, WIDTH + 32)
-  x = tf.image.random_crop(x, [HEIGHT, WIDTH, NUM_CHANNELS])
-  x = tf.image.random_flip_left_right(x)
-  return x, y	
 
 
 def load_csv(file):
@@ -90,9 +81,37 @@ test_images_path, test_labels = load_csv(TEST_FILE)
 NUM_TRAIN_SAMPLES = len(train_images_path)
 NUM_TEST_SAMPLES = len(test_images_path)
 
-# Feed data into your models.
-train_dataset = tf.data.Dataset.from_tensor_slices((train_images_path, train_labels))
-test_dataset = tf.data.Dataset.from_tensor_slices((test_images_path, test_labels))
+def train_generator():
+  """ Generator for training samples.
+  We should use yield when we want to iterate over a sequence, but don't want to store the entire sequence in memory.
+  """
+  for image_path, label in zip(train_images_path, train_labels):
+      X = np.array(resize(imread(image_path), (HEIGHT, WIDTH)))
+      y = label
+      
+      yield X, y
+          
+def test_generator():
+  """ Generator for test samples.
+  We should use yield when we want to iterate over a sequence, but don't want to store the entire sequence in memory.
+  """
+  for image_path, label in zip(test_images_path, test_labels):
+      X = np.array(resize(imread(image_path), (HEIGHT, WIDTH)))
+      y = label
+      
+      yield X, y
+
+
+# Feed data into your models using generators.
+# You can handle large datasets since samples are created on the fly.
+train_dataset = tf.data.Dataset.from_generator(generator = train_generator,
+                                            output_types = (tf.float32, tf.int8),
+                                            output_shapes=(tf.TensorShape([HEIGHT, WIDTH, 3]), tf.TensorShape([])))
+test_dataset = tf.data.Dataset.from_generator(generator = test_generator,
+                                            output_types = (tf.float32, tf.int8),
+                                            output_shapes=(tf.TensorShape([HEIGHT, WIDTH, 3]), tf.TensorShape([])))
+
+
 
 # Preprocess data.
 train_dataset = train_dataset.shuffle(NUM_TRAIN_SAMPLES).map(preprocess_train).batch(BS_PER_GPU, drop_remainder=True)

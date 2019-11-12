@@ -4,10 +4,10 @@
 # Installation
 
 ```
-git clone https://github.com/lambdal/TensorFlow2-tutorial.git
+git clone https://github.com/bozcani/TensorFlow2-tutorial
 cd TensorFlow2-tutorial
-virtualenv venv-tf2
-. venv-tf2/bin/activate
+conda create -n tensorflow2.0-practice python=3.7
+conda activate tensorflow2.0-practice
 pip install tf-nightly-gpu-2.0-preview==2.0.0.dev20190526
 ```
 
@@ -48,3 +48,12 @@ This tutorial explains how to do distributed training across multiple nodes:
 * Code boilerplate for multi-node distributed training
 * Run code across multiple machines
 
+### 06 Train on Large Dataset
+This tutorial explains how to train on large datasets:
+
+* Create and use generators to create data
+* Use ```tf.data.Dataset.from_generator``` to crate Dataset object from a generator.
+
+# Origin
+
+See the original repo: https://github.com/lambdal/TensorFlow2-tutorial

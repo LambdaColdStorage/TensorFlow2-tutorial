@@ -1,0 +1,4 @@
+output-cifar/*
+__pycache__/*
+*.h5
+logs/*
