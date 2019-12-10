@@ -9,7 +9,7 @@ def download(data_url, data_dir):
   if not os.path.isdir(data_dir):
     os.makedirs(data_dir)
 
-  download_tar_name = os.path.join("/tmp", os.path.basename(data_url))
+  download_tar_name = os.path.basename(data_url)
 
   def _progress(count, block_size, total_size):
     sys.stdout.write('\r>> Downloading to %s %.1f%%' % (
